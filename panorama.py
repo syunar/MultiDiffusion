@@ -17,19 +17,60 @@ def seed_everything(seed):
     # torch.backends.cudnn.benchmark = True
 
 
+# def get_views(panorama_height, panorama_width, window_size=64, stride=8):
+#     panorama_height /= 8
+#     panorama_width /= 8
+#     num_blocks_height = (panorama_height - window_size) // stride + 1
+#     num_blocks_width = (panorama_width - window_size) // stride + 1
+#     total_num_blocks = int(num_blocks_height * num_blocks_width)
+#     views = []
+#     for i in range(total_num_blocks):
+#         h_start = int((i // num_blocks_width) * stride)
+#         h_end = h_start + window_size
+#         w_start = int((i % num_blocks_width) * stride)
+#         w_end = w_start + window_size
+#         views.append((h_start, h_end, w_start, w_end))
+#     return views
+
 def get_views(panorama_height, panorama_width, window_size=64, stride=8):
+    """
+    Generate a list of views (sub-regions) within a given panorama.
+
+    Args:
+        panorama_height (int): Height of the panorama.
+        panorama_width (int): Width of the panorama.
+        window_size (int, optional): Size of the window used for extracting views. Default is 64.
+        stride (int, optional): Step size used to slide the window over the panorama. Default is 8.
+
+    Returns:
+        list: A list of views, where each view is represented by a tuple (h_start, h_end, w_start, w_end).
+    """
+    # Step 1: Resize the panorama dimensions by a factor of 8
     panorama_height /= 8
     panorama_width /= 8
+
+    # Step 2: Calculate the number of blocks (views) that fit in the panorama
     num_blocks_height = (panorama_height - window_size) // stride + 1
     num_blocks_width = (panorama_width - window_size) // stride + 1
+
+    # Step 3: Calculate the total number of views
     total_num_blocks = int(num_blocks_height * num_blocks_width)
+
+    # Step 4: Initialize an empty list to store the views
     views = []
+
+    # Step 5: Loop through the total number of views
     for i in range(total_num_blocks):
+        # Step 6: Calculate the coordinates for the current view
         h_start = int((i // num_blocks_width) * stride)
         h_end = h_start + window_size
         w_start = int((i % num_blocks_width) * stride)
         w_end = w_start + window_size
+
+        # Step 7: Append the view coordinates to the views list
         views.append((h_start, h_end, w_start, w_end))
+
+    # Step 8: Return the list of views
     return views
 
 
@@ -110,14 +151,14 @@ class MultiDiffusion(nn.Module):
 
         self.scheduler.set_timesteps(num_inference_steps)
 
-        with torch.autocast('cuda'):
+        with torch.autocast('cuda'): # perform mixed-precision
             for i, t in enumerate(tqdm(self.scheduler.timesteps)):
-                count.zero_()
-                value.zero_()
+                count.zero_() # set zero
+                value.zero_() # set zero
 
-                for h_start, h_end, w_start, w_end in views:
+                for h_start, h_end, w_start, w_end in views: # loop to each view (each crop)
                     # TODO we can support batches, and pass multiple views at once to the unet
-                    latent_view = latent[:, :, h_start:h_end, w_start:w_end]
+                    latent_view = latent[:, :, h_start:h_end, w_start:w_end] # split latent in section of given view
 
                     # expand the latents if we are doing classifier-free guidance to avoid doing two forward passes.
                     latent_model_input = torch.cat([latent_view] * 2)
