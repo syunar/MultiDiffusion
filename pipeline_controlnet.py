@@ -918,7 +918,7 @@ class MultiDiffusionControlNetPipeline(
         #     latents,
         # )
         # Define panorama grid and get views
-        latents = torch.randn((1, self.unet.in_channels, height // 8, width // 8), device=self.device)
+        latents = torch.randn((1, self.unet.in_channels, height // 8, width // 8), device=device)
         views = get_views(height, width, stride=stride)
         for h_start, h_end, w_start, w_end in get_views(height, width, stride=64):
             latents[:, :, h_start:h_end, w_start:w_end] *= self.scheduler.init_noise_sigma
@@ -942,6 +942,7 @@ class MultiDiffusionControlNetPipeline(
         # 8. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         with self.progress_bar(total=num_inference_steps) as progress_bar:
+
             # 8.1 loop to each timesteps
             for i, t in enumerate(timesteps):
                 
@@ -951,6 +952,7 @@ class MultiDiffusionControlNetPipeline(
 
                 # 8.2 loop to each patchs -> denoise process each patchs
                 for h_start, h_end, w_start, w_end in views:
+
                     # TODO we can support batches, and pass multiple views at once to the unet
                     latent_view = latents[:, :, h_start:h_end, w_start:w_end]
 
@@ -1014,7 +1016,7 @@ class MultiDiffusionControlNetPipeline(
                     value[:, :, h_start:h_end, w_start:w_end] += latents_view_denoised
                     count[:, :, h_start:h_end, w_start:w_end] += 1
 
-                    #---------- finish denoise process for each patchs -----------#
+                    #------------ finish denoise process for each patchs -----------#
 
                 # 8.3 MultiDiffusion step: at each t after finish denoise each patchs 
                 # then take mean of `value` by divide with `count` for each pixel
