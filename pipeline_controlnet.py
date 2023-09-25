@@ -922,7 +922,9 @@ class MultiDiffusionControlNetPipeline(
         views = get_views(height, width, stride=stride)
         for h_start, h_end, w_start, w_end in get_views(height, width, stride=64):
             latents[:, :, h_start:h_end, w_start:w_end] *= self.scheduler.init_noise_sigma
+        # count is how much that pixel overlap or duplicate wich each patchs
         count = torch.zeros_like(latents)
+        # value is latents which not do multidiffuse yet
         value = torch.zeros_like(latents)
 
         # 7. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
@@ -940,9 +942,14 @@ class MultiDiffusionControlNetPipeline(
         # 8. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         with self.progress_bar(total=num_inference_steps) as progress_bar:
+            # 8.1 loop to each timesteps
             for i, t in enumerate(timesteps):
+                
+                # set zero for each pixel (latent pixel)
                 count.zero_()
                 value.zero_()
+
+                # 8.2 loop to each patchs -> denoise process each patchs
                 for h_start, h_end, w_start, w_end in views:
                     # TODO we can support batches, and pass multiple views at once to the unet
                     latent_view = latents[:, :, h_start:h_end, w_start:w_end]
@@ -1002,12 +1009,15 @@ class MultiDiffusionControlNetPipeline(
                         noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                         noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
-                    # compute the previous noisy sample x_t -> x_t-1
+                    # compute the previous noisy sample p(x_t, noise_pred, t) -> x_t-1 | ( p process )
                     latents_view_denoised = self.scheduler.step(noise_pred, t, latent_view, **extra_step_kwargs, return_dict=False)[0]
                     value[:, :, h_start:h_end, w_start:w_end] += latents_view_denoised
                     count[:, :, h_start:h_end, w_start:w_end] += 1
 
-                # take the MultiDiffusion step
+                    #---------- finish denoise process for each patchs -----------#
+
+                # 8.3 MultiDiffusion step: at each t after finish denoise each patchs 
+                # then take mean of `value` by divide with `count` for each pixel
                 assert (count > 0).all()
                 latents = torch.where(count > 0, value / count, value)
 
@@ -1016,6 +1026,8 @@ class MultiDiffusionControlNetPipeline(
                     progress_bar.update()
                     if callback is not None and i % callback_steps == 0:
                         callback(i, t, latents)
+
+                #----------------- finish 1 step ------------------#
 
         # If we do sequential model offloading, let's offload unet and controlnet
         # manually for max memory savings
