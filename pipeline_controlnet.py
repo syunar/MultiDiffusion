@@ -103,7 +103,7 @@ EXAMPLE_DOC_STRING = """
 """
 
 
-class StableDiffusionControlNetPipeline(
+class MultiDiffusionControlNetPipeline(
     DiffusionPipeline, TextualInversionLoaderMixin, LoraLoaderMixin, FromSingleFileMixin
 ):
     r"""

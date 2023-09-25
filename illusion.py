@@ -5,7 +5,7 @@ from diffusers import (
     ControlNetModel,
     EulerDiscreteScheduler
 )
-from pipeline_controlnet import StableDiffusionControlNetPipeline
+from pipeline_controlnet import MultiDiffusionControlNetPipeline
 import argparse
 
 
@@ -59,12 +59,12 @@ if __name__ == '__main__':
     vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse")
     controlnet = ControlNetModel.from_pretrained(
         "monster-labs/control_v1p_sd15_qrcode_monster")
-    pipe = StableDiffusionControlNetPipeline.from_pretrained(
+    pipe = MultiDiffusionControlNetPipeline.from_pretrained(
         "SG161222/Realistic_Vision_V5.1_noVAE",
         controlnet=controlnet,
         vae=vae,
         safety_checker=None,
-    ).to("cuda")
+    ).to("cpu")
 
     control_image = Image.open(opt.controlnet_img).convert("RGB")
     control_image = center_crop_resize(control_image, output_size=(w, h))
