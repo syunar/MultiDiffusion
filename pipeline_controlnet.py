@@ -928,14 +928,14 @@ class MultiDiffusionControlNetPipeline(
                 value.zero_()
 
                 # 8.2 loop to each patchs -> denoise process each patchs
-                for i, (h_start, h_end, w_start, w_end) in enumerate(views):
+                for j, (h_start, h_end, w_start, w_end) in enumerate(views):
 
                     # 3. Encode input prompt
                     text_encoder_lora_scale = (
                         cross_attention_kwargs.get("scale", None) if cross_attention_kwargs is not None else None
                     )
                     prompt_embeds, negative_prompt_embeds = self.encode_prompt(
-                        prompt[i],
+                        prompt[j],
                         device,
                         num_images_per_prompt,
                         do_classifier_free_guidance,
