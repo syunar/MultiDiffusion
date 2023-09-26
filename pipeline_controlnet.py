@@ -950,7 +950,7 @@ class MultiDiffusionControlNetPipeline(
                     # Here we concatenate the unconditional and text embeddings into a single batch
                     # to avoid doing two forward passes
                     if do_classifier_free_guidance:
-                        prompt_embeds = torch.cat([negative_prompt_embeds.unsqueeze(0), prompt_embeds.unsqueeze(0)])
+                        prompt_embeds = torch.cat([negative_prompt_embeds, prompt_embeds])
 
 
                     # TODO we can support batches, and pass multiple views at once to the unet
@@ -977,6 +977,7 @@ class MultiDiffusionControlNetPipeline(
                         if isinstance(controlnet_cond_scale, list):
                             controlnet_cond_scale = controlnet_cond_scale[0]
                         cond_scale = controlnet_cond_scale * controlnet_keep[i]
+
 
                     down_block_res_samples, mid_block_res_sample = self.controlnet(
                         control_model_input,
