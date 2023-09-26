@@ -935,7 +935,7 @@ class MultiDiffusionControlNetPipeline(
                         cross_attention_kwargs.get("scale", None) if cross_attention_kwargs is not None else None
                     )
                     prompt_embeds, negative_prompt_embeds = self.encode_prompt(
-                        prompt[i],
+                        [prompt[i]],
                         device,
                         num_images_per_prompt,
                         do_classifier_free_guidance,
