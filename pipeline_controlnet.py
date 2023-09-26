@@ -820,13 +820,14 @@ class MultiDiffusionControlNetPipeline(
             control_guidance_end,
         )
 
-        # 2. Define call parameters
-        if prompt is not None and isinstance(prompt, str):
-            batch_size = 1
-        elif prompt is not None and isinstance(prompt, list):
-            batch_size = len(prompt)
-        else:
-            batch_size = prompt_embeds.shape[0]
+        # # 2. Define call parameters
+        # if prompt is not None and isinstance(prompt, str):
+        #     batch_size = 1
+        # elif prompt is not None and isinstance(prompt, list):
+        #     batch_size = len(prompt)
+        # else:
+        #     batch_size = prompt_embeds.shape[0]
+        batch_size = 1
 
         device = self._execution_device
         # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
@@ -844,25 +845,7 @@ class MultiDiffusionControlNetPipeline(
         )
         guess_mode = guess_mode or global_pool_conditions
 
-        # 3. Encode input prompt
-        text_encoder_lora_scale = (
-            cross_attention_kwargs.get("scale", None) if cross_attention_kwargs is not None else None
-        )
-        prompt_embeds, negative_prompt_embeds = self.encode_prompt(
-            prompt,
-            device,
-            num_images_per_prompt,
-            do_classifier_free_guidance,
-            negative_prompt,
-            prompt_embeds=prompt_embeds,
-            negative_prompt_embeds=negative_prompt_embeds,
-            lora_scale=text_encoder_lora_scale,
-        )
-        # For classifier free guidance, we need to do two forward passes.
-        # Here we concatenate the unconditional and text embeddings into a single batch
-        # to avoid doing two forward passes
-        if do_classifier_free_guidance:
-            prompt_embeds = torch.cat([negative_prompt_embeds, prompt_embeds])
+
 
         # 4. Prepare image
         if isinstance(controlnet, ControlNetModel):
@@ -906,22 +889,16 @@ class MultiDiffusionControlNetPipeline(
         timesteps = self.scheduler.timesteps
 
         # 6. Prepare latent variables
-        num_channels_latents = self.unet.config.in_channels
-        # latents = self.prepare_latents(
-        #     batch_size * num_images_per_prompt,
-        #     num_channels_latents,
-        #     height,
-        #     width,
-        #     prompt_embeds.dtype,
-        #     device,
-        #     generator,
-        #     latents,
-        # )
-        # Define panorama grid and get views
+
+        # 6.1 randn (std = 1)
         latents = torch.randn((1, self.unet.in_channels, height // 8, width // 8), device=device)
+
+        # 6.2 model was trained on std = 14.xx (init_noise_sigma) so have to scaled back
+        # for more detail about `init_noise_sigma` -> https://forums.fast.ai/t/init-noise-sigma/101423/5
+        latents = latents * self.scheduler.init_noise_sigma
+
         views = get_views(height, width, stride=stride)
-        for h_start, h_end, w_start, w_end in get_views(height, width, stride=64):
-            latents[:, :, h_start:h_end, w_start:w_end] *= self.scheduler.init_noise_sigma
+
         # count is how much that pixel overlap or duplicate wich each patchs
         count = torch.zeros_like(latents)
         # value is latents which not do multidiffuse yet
@@ -951,7 +928,30 @@ class MultiDiffusionControlNetPipeline(
                 value.zero_()
 
                 # 8.2 loop to each patchs -> denoise process each patchs
-                for h_start, h_end, w_start, w_end in views:
+                for i, (h_start, h_end, w_start, w_end) in enumerate(views):
+
+                    # 3. Encode input prompt
+                    text_encoder_lora_scale = (
+                        cross_attention_kwargs.get("scale", None) if cross_attention_kwargs is not None else None
+                    )
+                    prompt_embeds, negative_prompt_embeds = self.encode_prompt(
+                        prompt[i],
+                        device,
+                        num_images_per_prompt,
+                        do_classifier_free_guidance,
+                        negative_prompt,
+                        prompt_embeds=prompt_embeds,
+                        negative_prompt_embeds=negative_prompt_embeds,
+                        lora_scale=text_encoder_lora_scale,
+                    )
+
+                    
+                    # For classifier free guidance, we need to do two forward passes.
+                    # Here we concatenate the unconditional and text embeddings into a single batch
+                    # to avoid doing two forward passes
+                    if do_classifier_free_guidance:
+                        prompt_embeds = torch.cat([negative_prompt_embeds, prompt_embeds])
+
 
                     # TODO we can support batches, and pass multiple views at once to the unet
                     latent_view = latents[:, :, h_start:h_end, w_start:w_end]
