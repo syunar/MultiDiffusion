@@ -891,7 +891,7 @@ class MultiDiffusionControlNetPipeline(
         # 6. Prepare latent variables
 
         # 6.1 randn (std = 1)
-        latents = torch.randn((1, self.unet.in_channels, height // 8, width // 8), device=device)
+        latents = torch.randn((1, self.unet.in_channels, height // 8, width // 8), device=device, dtype=controlnet.dtype)
 
         # 6.2 model was trained on std = 14.xx (init_noise_sigma) so have to scaled back
         # for more detail about `init_noise_sigma` -> https://forums.fast.ai/t/init-noise-sigma/101423/5
