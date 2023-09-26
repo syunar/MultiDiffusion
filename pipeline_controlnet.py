@@ -935,7 +935,7 @@ class MultiDiffusionControlNetPipeline(
                         cross_attention_kwargs.get("scale", None) if cross_attention_kwargs is not None else None
                     )
                     prompt_embeds, negative_prompt_embeds = self.encode_prompt(
-                        [prompt[i]],
+                        prompt[i],
                         device,
                         num_images_per_prompt,
                         do_classifier_free_guidance,
@@ -950,7 +950,7 @@ class MultiDiffusionControlNetPipeline(
                     # Here we concatenate the unconditional and text embeddings into a single batch
                     # to avoid doing two forward passes
                     if do_classifier_free_guidance:
-                        prompt_embeds = torch.cat([negative_prompt_embeds, prompt_embeds])
+                        prompt_embeds = torch.cat([negative_prompt_embeds.unsqueeze(0), prompt_embeds.unsqueeze(0)])
 
 
                     # TODO we can support batches, and pass multiple views at once to the unet
