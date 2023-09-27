@@ -940,8 +940,8 @@ class MultiDiffusionControlNetPipeline(
                         num_images_per_prompt,
                         do_classifier_free_guidance,
                         negative_prompt,
-                        prompt_embeds=prompt_embeds,
-                        negative_prompt_embeds=negative_prompt_embeds,
+                        prompt_embeds=None,
+                        negative_prompt_embeds=None,
                         lora_scale=text_encoder_lora_scale,
                     )
 
